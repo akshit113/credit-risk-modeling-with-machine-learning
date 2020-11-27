@@ -1,4 +1,4 @@
-# credit-risk-modeling-with-machine-learning
+# Credit Risk Modelling with Machine Learning
 
 https://www.kaggle.com/c/GiveMeSomeCredit/
 
