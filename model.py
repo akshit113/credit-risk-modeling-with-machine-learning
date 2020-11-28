@@ -8,6 +8,7 @@ Original file is located at
 """
 
 import warnings
+from datetime import datetime
 
 import numpy as np
 from keras import Sequential
@@ -16,9 +17,8 @@ from pandas import read_csv, cut, DataFrame, get_dummies, concat
 from sklearn.metrics import f1_score, jaccard_score, precision_score, recall_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
-from collections import Counter
-from imblearn.under_sampling import NearMiss
-from datetime import datetime
+from sklearn.utils import resample
+
 
 def fxn():
     warnings.warn("deprecated", DeprecationWarning)
@@ -89,13 +89,37 @@ def one_hot_encode(df, colnames):
         df = df.drop([col], axis=1)
 
     missing = (df.isnull().values.any())
-    if missing:
+    while missing:
         df = df.dropna()
         print(df.isnull().sum())
+        missing = (df.isnull().values.any())
+
     print(df.shape)
     print(list(df.columns))
     print(df.shape)
     return df
+
+
+def undersample(df):
+    # Separate majority and minority classes
+    df_majority = df[df['SeriousDlqin2yrs'] == 0]
+    df_minority = df[df['SeriousDlqin2yrs'] == 1]
+    samples = min(len(df_minority), len(df_majority))
+    # Downsample majority class
+    df_majority_downsampled = resample(df_majority,
+                                       replace=False,  # sample without replacement
+                                       n_samples=samples,  # to match minority class
+                                       random_state=42)  # reproducible results
+
+    # Combine minority class with downsampled majority class
+    df_downsampled = concat([df_majority_downsampled, df_minority])
+
+    # Display new class counts
+    print(df_downsampled['SeriousDlqin2yrs'].value_counts())
+    # 1    49
+    # 0    49
+    # Name: balance, dtype: int64
+    return df_downsampled
 
 
 def print_cols(df):
@@ -219,13 +243,12 @@ def make_predictions(model, x_test, y_test):
     return labels, y_test
 
 
-
 if __name__ == '__main__':
     df = import_data()
     df = clean_data(df)
     df = normalize_columns(df, colnames=['age', 'MonthlyIncome'])
     df = one_hot_encode(df, colnames=['NumberOfDependents', 'ages'])
-
+    df = undersample(df)
     X, Y, x_train, x_test, y_train, y_test = split_dataset(df, test_size=0.2, seed=42)
     missing = (X.isnull().values.any())
     if missing:
@@ -236,12 +259,8 @@ if __name__ == '__main__':
     batch = 128
     epochs = 7
 
-    nm = NearMiss()
-    print("The number of classes before fit {}".format(Counter(y_train)))
-    x_train_ns, y_train_ns = nm.fit_sample(x_train, y_train)
-    print("The number of classes after fit {}".format(Counter(y_train_ns)))
     print('\n' * 5)
-    test_acc, test_loss = fit_and_evaluate(classifier, x_train_ns, y_train_ns, x_test, y_test, batch_size=batch,
+    test_acc, test_loss = fit_and_evaluate(classifier, X_train, Y_train, x_test, y_test, batch_size=batch,
                                            epochs=epochs)
     end = datetime.now()
     total_seconds = (end - start).seconds
@@ -260,4 +279,6 @@ if __name__ == '__main__':
     f1 = calc_accuracy_using_metrics(y_hat, y_test, 'f1_score', 'binary')
     precision = calc_accuracy_using_metrics(y_hat, y_test, 'precision_score', 'binary')
     recall = calc_accuracy_using_metrics(y_hat, y_test, 'recall_score', 'binary')
+
+
     print('Program execution complete!')
