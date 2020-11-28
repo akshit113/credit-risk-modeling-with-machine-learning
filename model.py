@@ -9,6 +9,7 @@ Original file is located at
 
 import warnings
 from datetime import datetime
+from pickle import dump
 
 import numpy as np
 from keras import Sequential
@@ -240,7 +241,13 @@ def make_predictions(model, x_test, y_test):
     labels = (np.where(predictions < 0.5, 0, 1)).flatten()
     # labels = (predictions < 0.5).astype(np.int)
     print(labels)
-    return labels, y_test
+    return labels, y_test, model
+
+
+def export(classifier):
+    pickle_out = open("classifier.pkl", "wb")
+    dump(classifier, pickle_out)
+    pickle_out.close()
 
 
 if __name__ == '__main__':
@@ -271,7 +278,10 @@ if __name__ == '__main__':
 
     print(test_acc, test_loss)
 
-    y_hat, y_test = make_predictions(classifier, x_test, y_test)
+    y_hat, y_test, model = make_predictions(classifier, x_test, y_test)
+    export(model)
+
+
 
     print(y_test.shape)
     print(y_hat.shape)
