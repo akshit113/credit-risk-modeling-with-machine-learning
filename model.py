@@ -14,7 +14,7 @@ from pickle import dump
 import numpy as np
 from keras import Sequential
 from keras.layers import Dense
-from pandas import read_csv, cut, DataFrame, get_dummies, concat
+from pandas import read_csv, cut, DataFrame, get_dummies, concat, read_excel
 from sklearn.metrics import f1_score, jaccard_score, precision_score, recall_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
@@ -249,17 +249,23 @@ def write_logs(fname, score):
     files = glob.glob(fname)
     fields = [score]
     export = False
-    import csv
     if len(files) != 0:
-        sc_df = read_csv(fname)
+        sc_df = read_excel(fname)
         old = float(sc_df['Score'].values.tolist()[-1])
         if score > old:
             export = True
-            with open(fname, 'a') as f:
-                writer = csv.writer(f)
-                writer.writerow(fields)
-                f.close()
-    return score, export
+            from openpyxl import load_workbook
+            # load the workbook, and put the sheet into a variable
+            wb = load_workbook(filename=fname)
+            ws = wb['Sheet1']
+
+            # max_row is a sheet function that gets the last row in a sheet.
+            newRowLocation = ws.max_row + 1
+            # write to the cell you want, specifying row and column, and value :-)
+            ws.cell(column=1, row=newRowLocation, value=score)
+            wb.save(filename=fname)
+            wb.close()
+    return export
 
 
 def export(classifier):
@@ -281,8 +287,8 @@ if __name__ == '__main__':
     X_train, Y_train = np.array(x_train), np.array(y_train)
     classifier = get_model(X.shape[1], 1, magic='sigmoid')
     start = datetime.now()
-    batch = 128
-    epochs = 7
+    batch = 32
+    epochs = 20
 
     print('\n' * 5)
     test_acc, test_loss = fit_and_evaluate(classifier, X_train, Y_train, x_test, y_test, batch_size=batch,
@@ -301,8 +307,8 @@ if __name__ == '__main__':
     roc_auc_score = get_metrics(y_test, y_hat, 'roc_auc_score', 'macro')
     print(roc_auc_score)
 
-    fname = 'nn_logs.csv'
-    score, export_flag = write_logs(fname, roc_auc_score)
+    fname = 'nn_logs.xlsx'
+    export_flag = write_logs(fname, roc_auc_score)
     if export_flag:
         export(model)
 
