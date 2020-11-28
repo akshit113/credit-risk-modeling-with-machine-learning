@@ -322,14 +322,14 @@ if __name__ == '__main__':
 
     fname = 'nn_logs.xlsx'
     export_flag = write_logs(fname, roc_auc_score)
-    export(model)
+    # export(model)
 
-    if export_flag:
-        export(model)
+    # if export_flag:
+    #     export(model)
 
-    # jcard_score = get_metrics(y_test, y_hat, 'jaccard_score', 'binary')
-    # f1 = get_metrics(y_test, y_hat, 'f1_score', 'binary')
-    # precision = get_metrics(y_test, y_hat, 'precision_score', 'binary')
-    # recall = get_metrics(y_test, y_hat, 'recall_score', 'binary')
+    jcard_score = get_metrics(y_test, y_hat, 'jaccard_score', 'binary')
+    f1 = get_metrics(y_test, y_hat, 'f1_score', 'binary')
+    precision = get_metrics(y_test, y_hat, 'precision_score', 'binary')
+    recall = get_metrics(y_test, y_hat, 'recall_score', 'binary')
 
     print('Program execution complete!')
