@@ -169,7 +169,7 @@ def fit_and_evaluate(model, x_train, y_train, x_test, y_test, batch_size, epochs
     print('Test accuracy:', test_acc)
     print('Test Loss:', test_loss)
     return test_acc, test_loss
-
+ 
 
 df = import_data()
 
