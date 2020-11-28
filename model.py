@@ -16,7 +16,9 @@ from pandas import read_csv, cut, DataFrame, get_dummies, concat
 from sklearn.metrics import f1_score, jaccard_score, precision_score, recall_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
-
+from collections import Counter
+from imblearn.under_sampling import NearMiss
+from datetime import datetime
 
 def fxn():
     warnings.warn("deprecated", DeprecationWarning)
@@ -134,18 +136,18 @@ def get_model(input_size, output_size, magic='relu'):
     """
     mlmodel = Sequential()
     mlmodel.add(Dense(18, input_dim=input_size, activation=magic))
-    mlmodel.add(Dense(128, activation='relu', kernel_initializer="uniform"))
+    mlmodel.add(Dense(128, activation='selu', kernel_initializer="uniform"))
     mlmodel.add(Dense(128, activation='sigmoid', kernel_initializer="uniform"))
-    mlmodel.add(Dense(256, activation='relu', kernel_initializer="uniform"))
-    mlmodel.add(Dense(256, activation='relu', kernel_initializer="uniform"))
+    mlmodel.add(Dense(256, activation='selu', kernel_initializer="uniform"))
+    mlmodel.add(Dense(256, activation='sigmoid', kernel_initializer="uniform"))
+    mlmodel.add(Dense(512, activation='selu', kernel_initializer="uniform"))
     mlmodel.add(Dense(512, activation='sigmoid', kernel_initializer="uniform"))
-    mlmodel.add(Dense(512, activation='relu', kernel_initializer="uniform"))
     mlmodel.add(Dense(1024, activation='relu', kernel_initializer="uniform"))
     mlmodel.add(Dense(1, activation='sigmoid', kernel_initializer="uniform"))
 
     # Setting optimizer
     # mlmodel.compile(loss="binary_crossentropy", optimizer='adam', metrics=['accuracy'])
-    mlmodel.compile(optimizer='adam', loss='binary_crossentropy', metrics=['binary_accuracy'])
+    mlmodel.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     # opt = SGD(lr=0.01)
     # mlmodel.compile(loss="binary_crossentropy", optimizer=opt, metrics=['binary_accuracy'])
     return mlmodel
@@ -169,66 +171,6 @@ def fit_and_evaluate(model, x_train, y_train, x_test, y_test, batch_size, epochs
     print('Test accuracy:', test_acc)
     print('Test Loss:', test_loss)
     return test_acc, test_loss
- 
-
-df = import_data()
-
-df = clean_data(df)
-df = normalize_columns(df, colnames=['age', 'MonthlyIncome'])
-df = one_hot_encode(df, colnames=['NumberOfDependents', 'ages'])
-
-X, Y, x_train, x_test, y_train, y_test = split_dataset(df, test_size=0.2, seed=42)
-missing = (X.isnull().values.any())
-if missing:
-    print(X.isnull().sum())
-X_train, Y_train = np.array(x_train), np.array(y_train)
-classifier = get_model(X.shape[1], 1, magic='sigmoid')
-
-from datetime import datetime
-
-start = datetime.now()
-epochs = 7
-batch = 128
-from collections import Counter
-from imblearn.under_sampling import NearMiss
-
-nm = NearMiss()
-print("The number of classes before fit {}".format(Counter(y_train)))
-x_train_ns, y_train_ns = nm.fit_sample(x_train, y_train)
-print("The number of classes after fit {}".format(Counter(y_train_ns)))
-
-print('\n' * 5)
-
-test_acc, test_loss = fit_and_evaluate(classifier, x_train_ns, y_train_ns, x_test, y_test, batch_size=batch,
-                                       epochs=epochs)
-
-end = datetime.now()
-total_seconds = (end - start).seconds
-minute, seconds = divmod(total_seconds, 60)
-print(f'\nTraining Time: {minute}:{seconds}')
-avg = total_seconds / epochs
-print(f'\nAverage time per epoch: {avg}')
-
-print(test_acc, test_loss)
-
-
-def make_predictions(model, x_test, y_test):
-    """This function makes predictions using the model on the unseen test dataset
-    :param y_test: test labels
-    :param model: Sequential model
-    :param x_test: unseen test dataset
-    :return: predictions in the binary numpy array format
-    """
-
-    y_test = y_test.to_numpy()
-    predictions = model.predict_on_batch(x_test)
-    labels = (np.where(predictions < 0.5, 0, 1)).flatten()
-    # labels = (predictions < 0.5).astype(np.int)
-    print(labels)
-    return labels, y_test
-
-
-y_hat, y_test = make_predictions(classifier, x_test, y_test)
 
 
 def calc_accuracy_using_metrics(y, y_hat, metric, average):
@@ -261,10 +203,61 @@ def calc_accuracy_using_metrics(y, y_hat, metric, average):
     return score
 
 
-print(y_test.shape)
-print(y_hat.shape)
-jcard_score = calc_accuracy_using_metrics(y_hat, y_test, 'jaccard_score', 'binary')
-f1 = calc_accuracy_using_metrics(y_hat, y_test, 'f1_score', 'binary')
-precision = calc_accuracy_using_metrics(y_hat, y_test, 'precision_score', 'binary')
-recall = calc_accuracy_using_metrics(y_hat, y_test, 'recall_score', 'binary')
-print('Program execution complete!')
+def make_predictions(model, x_test, y_test):
+    """This function makes predictions using the model on the unseen test dataset
+    :param y_test: test labels
+    :param model: Sequential model
+    :param x_test: unseen test dataset
+    :return: predictions in the binary numpy array format
+    """
+
+    y_test = y_test.to_numpy()
+    predictions = model.predict_on_batch(x_test)
+    labels = (np.where(predictions < 0.5, 0, 1)).flatten()
+    # labels = (predictions < 0.5).astype(np.int)
+    print(labels)
+    return labels, y_test
+
+
+
+if __name__ == '__main__':
+    df = import_data()
+    df = clean_data(df)
+    df = normalize_columns(df, colnames=['age', 'MonthlyIncome'])
+    df = one_hot_encode(df, colnames=['NumberOfDependents', 'ages'])
+
+    X, Y, x_train, x_test, y_train, y_test = split_dataset(df, test_size=0.2, seed=42)
+    missing = (X.isnull().values.any())
+    if missing:
+        print(X.isnull().sum())
+    X_train, Y_train = np.array(x_train), np.array(y_train)
+    classifier = get_model(X.shape[1], 1, magic='sigmoid')
+    start = datetime.now()
+    batch = 128
+    epochs = 7
+
+    nm = NearMiss()
+    print("The number of classes before fit {}".format(Counter(y_train)))
+    x_train_ns, y_train_ns = nm.fit_sample(x_train, y_train)
+    print("The number of classes after fit {}".format(Counter(y_train_ns)))
+    print('\n' * 5)
+    test_acc, test_loss = fit_and_evaluate(classifier, x_train_ns, y_train_ns, x_test, y_test, batch_size=batch,
+                                           epochs=epochs)
+    end = datetime.now()
+    total_seconds = (end - start).seconds
+    minute, seconds = divmod(total_seconds, 60)
+    print(f'\nTraining Time: {minute}:{seconds}')
+    avg = total_seconds / epochs
+    print(f'\nAverage time per epoch: {avg}')
+
+    print(test_acc, test_loss)
+
+    y_hat, y_test = make_predictions(classifier, x_test, y_test)
+
+    print(y_test.shape)
+    print(y_hat.shape)
+    jcard_score = calc_accuracy_using_metrics(y_hat, y_test, 'jaccard_score', 'binary')
+    f1 = calc_accuracy_using_metrics(y_hat, y_test, 'f1_score', 'binary')
+    precision = calc_accuracy_using_metrics(y_hat, y_test, 'precision_score', 'binary')
+    recall = calc_accuracy_using_metrics(y_hat, y_test, 'recall_score', 'binary')
+    print('Program execution complete!')
