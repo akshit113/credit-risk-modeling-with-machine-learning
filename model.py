@@ -13,7 +13,7 @@ from pickle import dump
 
 import numpy as np
 from keras import Sequential
-from keras.layers import Dense
+from keras.layers import Dense, Dropout
 from pandas import read_csv, cut, DataFrame, get_dummies, concat, read_excel
 from sklearn.metrics import f1_score, jaccard_score, precision_score, recall_score, roc_auc_score
 from sklearn.model_selection import train_test_split
@@ -159,15 +159,30 @@ def get_model(input_size, output_size, magic='relu'):
     :param magic: activation function
     :return:Sequential model
     """
+    dropout_rate = 0.2
     mlmodel = Sequential()
-    mlmodel.add(Dense(18, input_dim=input_size, activation=magic))
+    mlmodel.add(Dense(18, input_dim=input_size, activation='selu'))
+
+    mlmodel.add(Dense(32, activation='selu', kernel_initializer="uniform"))
+    mlmodel.add(Dropout(dropout_rate))
+    mlmodel.add(Dense(32, activation='selu', kernel_initializer="uniform"))
+    mlmodel.add(Dropout(dropout_rate))
     mlmodel.add(Dense(128, activation='selu', kernel_initializer="uniform"))
-    mlmodel.add(Dense(128, activation='sigmoid', kernel_initializer="uniform"))
+    mlmodel.add(Dropout(dropout_rate))
+    mlmodel.add(Dense(128, activation='selu', kernel_initializer="uniform"))
+    mlmodel.add(Dropout(dropout_rate))
     mlmodel.add(Dense(256, activation='selu', kernel_initializer="uniform"))
-    mlmodel.add(Dense(256, activation='sigmoid', kernel_initializer="uniform"))
+    mlmodel.add(Dropout(dropout_rate))
+    mlmodel.add(Dense(256, activation='selu', kernel_initializer="uniform"))
+    mlmodel.add(Dropout(dropout_rate))
     mlmodel.add(Dense(512, activation='selu', kernel_initializer="uniform"))
-    mlmodel.add(Dense(512, activation='sigmoid', kernel_initializer="uniform"))
-    mlmodel.add(Dense(1024, activation='relu', kernel_initializer="uniform"))
+    mlmodel.add(Dropout(dropout_rate))
+    mlmodel.add(Dense(512, activation='selu', kernel_initializer="uniform"))
+    mlmodel.add(Dropout(dropout_rate))
+    mlmodel.add(Dense(1024, activation='selu', kernel_initializer="uniform"))
+    mlmodel.add(Dropout(dropout_rate))
+    mlmodel.add(Dense(1024, activation='selu', kernel_initializer="uniform"))
+
     mlmodel.add(Dense(1, activation='sigmoid', kernel_initializer="uniform"))
 
     # Setting optimizer
@@ -176,7 +191,6 @@ def get_model(input_size, output_size, magic='relu'):
     # opt = SGD(lr=0.01)
     # mlmodel.compile(loss="binary_crossentropy", optimizer=opt, metrics=['binary_accuracy'])
     return mlmodel
-
 
 def fit_and_evaluate(model, x_train, y_train, x_test, y_test, batch_size, epochs):
     """fits the model created in the get_model function on x_train, y_train and evaluates the model performance on
@@ -287,10 +301,9 @@ if __name__ == '__main__':
     X_train, Y_train = np.array(x_train), np.array(y_train)
     classifier = get_model(X.shape[1], 1, magic='sigmoid')
     start = datetime.now()
-    batch = 32
-    epochs = 20
+    batch = 1024
+    epochs = 100
 
-    print('\n' * 5)
     test_acc, test_loss = fit_and_evaluate(classifier, X_train, Y_train, x_test, y_test, batch_size=batch,
                                            epochs=epochs)
     end = datetime.now()
@@ -309,6 +322,8 @@ if __name__ == '__main__':
 
     fname = 'nn_logs.xlsx'
     export_flag = write_logs(fname, roc_auc_score)
+    export(model)
+
     if export_flag:
         export(model)
 
