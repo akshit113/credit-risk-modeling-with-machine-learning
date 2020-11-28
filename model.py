@@ -82,7 +82,7 @@ def one_hot_encode(df, colnames):
     :return: dataframe
     """
     for col in colnames:
-        oh_df = get_dummies(df[col], prefix=col)
+        oh_df = get_dummies(df[col], prefix=col, drop_first=True)
         df = concat([oh_df, df], axis=1)
         df = df.drop([col], axis=1)
 
@@ -90,7 +90,9 @@ def one_hot_encode(df, colnames):
     if missing:
         df = df.dropna()
         print(df.isnull().sum())
-
+    print(df.shape)
+    print(list(df.columns))
+    print(df.shape)
     return df
 
 
@@ -143,9 +145,9 @@ def get_model(input_size, output_size, magic='relu'):
 
     # Setting optimizer
     # mlmodel.compile(loss="binary_crossentropy", optimizer='adam', metrics=['accuracy'])
-    # mlmodel.compile(loss="binary_crossentropy", optimizer='adam', metrics=['binary_accuracy'])
-    mlmodel.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-
+    mlmodel.compile(optimizer='adam', loss='binary_crossentropy', metrics=['binary_accuracy'])
+    # opt = SGD(lr=0.01)
+    # mlmodel.compile(loss="binary_crossentropy", optimizer=opt, metrics=['binary_accuracy'])
     return mlmodel
 
 
@@ -261,7 +263,7 @@ def calc_accuracy_using_metrics(y, y_hat, metric, average):
 
 print(y_test.shape)
 print(y_hat.shape)
-jcard_score = calc_accuracy_using_metrics(y_hat,y_test, 'jaccard_score', 'binary')
+jcard_score = calc_accuracy_using_metrics(y_hat, y_test, 'jaccard_score', 'binary')
 f1 = calc_accuracy_using_metrics(y_hat, y_test, 'f1_score', 'binary')
 precision = calc_accuracy_using_metrics(y_hat, y_test, 'precision_score', 'binary')
 recall = calc_accuracy_using_metrics(y_hat, y_test, 'recall_score', 'binary')
