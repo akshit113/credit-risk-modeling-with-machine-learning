@@ -14,6 +14,7 @@ grpcio==1.33.2
 gunicorn==20.0.4
 h11==0.11.0
 h5py==2.10.0
+httptools==0.1.1
 idna==2.10
 jdcal==1.4.1
 joblib==0.17.0
@@ -47,6 +48,7 @@ termcolor==1.1.0
 threadpoolctl==2.1.0
 urllib3==1.26.2
 uvicorn==0.12.3
+uvloop==0.14.0
 Werkzeug==1.0.1
 wrapt==1.12.1
 xlrd==1.2.0
