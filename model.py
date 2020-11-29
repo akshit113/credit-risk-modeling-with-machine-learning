@@ -312,10 +312,12 @@ def write_logs(fname, score, openpyxl=None):
 
 
 def export(classifier):
-    make_keras_picklable()
-    pickle_out = open("classifier.pkl", "wb")
-    dump(classifier, pickle_out)
-    pickle_out.close()
+    # make_keras_picklable()
+
+    classifier.save("my_model")
+    # pickle_out = open("classifier.pkl", "wb")
+    # dump(classifier, pickle_out)
+    # pickle_out.close()
     print('keras model pickled')
 
 

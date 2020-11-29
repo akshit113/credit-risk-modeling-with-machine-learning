@@ -1,14 +1,14 @@
-import pickle
-
+import numpy as np
 import uvicorn
 from fastapi import FastAPI
 from pandas import DataFrame, concat
+from tensorflow import keras
 
 from credit import Credit
 
 app = FastAPI()
-pickle_in = open('classifier.pkl', 'rb')
-classifier = pickle.load(pickle_in)
+# It can be used to reconstruct the model identically.
+loaded_model = keras.models.load_model("my_model")
 
 
 @app.get('/')
@@ -17,7 +17,9 @@ def index():
 
 
 """
+sample json request
 0.766126609	45	2	0.802982129	9120	13	0	6	0	2
+0.957151019	40	0	0.121876201	2600	4	0	0	0	1
 {
   "revolving_utilization": 0.76,
   "age": 45,
@@ -31,6 +33,18 @@ def index():
   "n_dependents": 2
 }
 
+{
+  "revolving_utilization": 0.957151019,
+  "age": 40,
+  "n_30_59_days_past_due": 0,
+  "debt_ratio": 0.121876201,
+  "monthly_income": 2600,
+  "n_open_credit_lines": 4,
+  "n_90_days_late": 0,
+  "n_real_estate_loans": 0,
+  "n_60_89_past_due": 0,
+  "n_dependents": 1
+}
 
 """
 
@@ -76,9 +90,16 @@ def predict_delinquency(data: Credit):
     print(inp.shape)
 
     # pass list of list
-    pred = classifier.predict(inp)
-    print(str(pred))
-    return str(pred)
+    pred = loaded_model.predict(inp)
+    [label] = (np.where(pred < 0.5, 0, 1)).flatten()
+    if label == 0:
+        message = 'No, the borrower is financially stable [0]'
+    elif label == 1:
+        message = 'Yes, the borrower is at the risk of default [1]'
+    else:
+        message = 'Something is wrong with the model prediction...'
+    print({'prediction': message})
+    return {'prediction': message}
 
 
 if __name__ == '__main__':
