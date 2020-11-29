@@ -48,34 +48,32 @@ def get_input(data):
     n_dependents = data['n_dependents']
     ls = [[revolving_utilization, age, n_30_59_days_past_due, debt_ratio, monthly_income, n_open_credit_lines,
            n_90_days_late, n_real_estate_loans, n_60_89_past_due, n_dependents]]
-    test_df = DataFrame(ls)
+    test_df = DataFrame(ls, columns=['RevolvingUtilizationOfUnsecuredLines', 'age',
+                                     'NumberOfTime30-59DaysPastDueNotWorse', 'DebtRatio', 'MonthlyIncome',
+                                     'NumberOfOpenCreditLinesAndLoans', 'NumberOfTimes90DaysLate',
+                                     'NumberRealEstateLoansOrLines', 'NumberOfTime60-89DaysPastDueNotWorse',
+                                     'NumberOfDependents'])
     return test_df
-
-
 
 
 @app.post('/predict')
 def predict_delinquency(data: Credit):
     data = data.dict()
-    pred_df = get_input(data)
+    test_df = get_input(data)
     from model import import_data, normalize_columns, one_hot_encode, clean_data
-    df = import_data()
+    df = import_data(fname='datasets/cs-training.csv', train=False)
     df = clean_data(df)
-    print(list(df.columns))
-    df = df.drop(['SeriousDlqin2yrs'], axis=1)
-    fdf = concat([pred_df, df], axis=1)
-    normalized = normalize_columns(fdf, colnames=['age', 'MonthlyIncome'])
-    ohe = one_hot_encode(normalized, colnames=['NumberOfDependents', 'ages'])
-    inp = ohe.iloc[1:2, :]
+    test_df = clean_data(test_df)
+    A = set(test_df.columns)
+    B = set(df.columns)
+    print(A - B)
+    print(B - A)
+    fdf = concat([test_df, df])
+    normalized = normalize_columns(fdf, colnames=['age', 'MonthlyIncome', 'NumberOfDependents'])
+    ohe = one_hot_encode(normalized, test_df, colnames=['ages'])
+    inp = ohe.iloc[0:1, :]
     print(type(inp))
     print(inp.shape)
-    right = ['ages_10s', 'ages_20s', 'ages_30s', 'ages_40s', 'ages_50s', 'ages_60s', 'ages_70s',
-             'ages_80s', 'ages_90s', 'ages_100s', 'NumberOfDependents_1.0', 'NumberOfDependents_2.0',
-             'NumberOfDependents_3.0', 'NumberOfDependents_4.0', 'NumberOfDependents_5.0', 'NumberOfDependents_6.0',
-             'NumberOfDependents_7.0', 'NumberOfDependents_8.0', 'NumberOfDependents_9.0', 'NumberOfDependents_10.0',
-             'NumberOfDependents_13.0', 'NumberOfDependents_20.0', 'RevolvingUtilizationOfUnsecuredLines', 'age',
-             'NumberOfTime30-59DaysPastDueNotWorse', 'DebtRatio', 'MonthlyIncome', 'NumberOfOpenCreditLinesAndLoans',
-             'NumberRealEstateLoansOrLines', 'NumberOfTime60-89DaysPastDueNotWorse']
 
     # pass list of list
     pred = classifier.predict(inp)

@@ -10,17 +10,17 @@ import glob
 import tempfile
 import warnings
 from datetime import datetime
-from pickle import dump, dumps
+from pickle import dump
 
-import keras.models
 import numpy as np
-import tensorflow as tf
-from keras.layers import Dense, Dropout
 from pandas import read_csv, cut, DataFrame, concat, read_excel, get_dummies
 from sklearn.metrics import f1_score, jaccard_score, precision_score, recall_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.utils import resample
+from tensorflow import keras
+from tensorflow.keras.layers import Dropout, Dense
+from tensorflow.python.keras.models import Sequential
 
 
 def make_keras_picklable():
@@ -64,9 +64,9 @@ def import_data(fname, train=True):
     """
     df = read_csv(fname)
     if train:
-        df = df.iloc[:, [2, 3, 4, 5, 6, 7, 9, 10, 11, 1]]
+        df = df.iloc[:, [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 1]]
     else:
-        df = df.iloc[:, [2, 3, 4, 5, 6, 7, 9, 10, 11]]
+        df = df.iloc[:, [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]
     return df
 
 
@@ -112,15 +112,9 @@ def one_hot_encode(df, test_df, colnames):
     """
 
     for col in colnames:
-        train_labels = (sorted(list(set(df[col].values))))
-        test_labels = sorted(list(set(test_df[col].values)))
-        if train_labels == test_labels:
-            oh_df = get_dummies(df[col], prefix=col, drop_first=True)
-            df = concat([oh_df, df], axis=1)
-            df = df.drop([col], axis=1)
-        else:
-            cols = list(set(test_labels) - set(train_labels))
-
+        oh_df = get_dummies(df[col], prefix=col, drop_first=True)
+        df = concat([oh_df, df], axis=1)
+        df = df.drop([col], axis=1)
     missing = (df.isnull().values.any())
     while missing:
         df = df.dropna()
@@ -192,7 +186,7 @@ def get_model(input_size, output_size, magic='relu'):
     :return:Sequential model
     """
     dropout_rate = 0.2
-    mlmodel = tf.keras.Sequential()
+    mlmodel = Sequential()
     mlmodel.add(Dense(18, input_dim=input_size, activation='selu'))
 
     mlmodel.add(Dense(32, activation='selu', kernel_initializer="uniform"))
@@ -294,7 +288,7 @@ def make_predictions(model, x_test):
     return labels, model
 
 
-def write_logs(fname, score):
+def write_logs(fname, score, openpyxl=None):
     files = glob.glob(fname)
     fields = [score]
     export = False
@@ -319,12 +313,15 @@ def write_logs(fname, score):
 
 def export(classifier):
     make_keras_picklable()
-    dumps(classifier)
+    pickle_out = open("classifier.pkl", "wb")
+    dump(classifier, pickle_out)
+    pickle_out.close()
     print('keras model pickled')
 
 
 if __name__ == '__main__':
     df = import_data(fname='datasets/cs-training.csv')
+    print(list(df.columns))
     test_df = import_data(fname='datasets/cs-test.csv', train=False)
     df = clean_data(df)
     test_df = clean_data(test_df)
