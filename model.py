@@ -7,18 +7,41 @@ Original file is located at
     https://colab.research.google.com/drive/1xstJuJY8SaipsNU-brkMaDDxz7KC6WkV
 """
 import glob
+import tempfile
 import warnings
 from datetime import datetime
-from pickle import dump
+from pickle import dump, dumps
 
+import keras.models
 import numpy as np
-from keras import Sequential
+import tensorflow as tf
 from keras.layers import Dense, Dropout
-from pandas import read_csv, cut, DataFrame, get_dummies, concat, read_excel
+from pandas import read_csv, cut, DataFrame, concat, read_excel, get_dummies
 from sklearn.metrics import f1_score, jaccard_score, precision_score, recall_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.utils import resample
+
+
+def make_keras_picklable():
+    def __getstate__(self):
+        model_str = ""
+        with tempfile.NamedTemporaryFile(suffix='.hdf5', delete=True) as fd:
+            keras.models.save_model(self, fd.name, overwrite=True)
+            model_str = fd.read()
+        d = {'model_str': model_str}
+        return d
+
+    def __setstate__(self, state):
+        with tempfile.NamedTemporaryFile(suffix='.hdf5', delete=True) as fd:
+            fd.write(state['model_str'])
+            fd.flush()
+            model = keras.models.load_model(fd.name)
+        self.__dict__ = model.__dict__
+
+    cls = keras.models.Model
+    cls.__getstate__ = __getstate__
+    cls.__setstate__ = __setstate__
 
 
 def fxn():
@@ -35,12 +58,15 @@ import numpy
 numpy.set_printoptions(threshold=sys.maxsize)
 
 
-def import_data():
+def import_data(fname, train=True):
     """Import dataset and remove row numbers column
     :return: dataframe
     """
-    df = read_csv('datasets/cs-training.csv')
-    df = df.iloc[:, [2, 3, 4, 5, 6, 7, 9, 10, 11, 1]]
+    df = read_csv(fname)
+    if train:
+        df = df.iloc[:, [2, 3, 4, 5, 6, 7, 9, 10, 11, 1]]
+    else:
+        df = df.iloc[:, [2, 3, 4, 5, 6, 7, 9, 10, 11]]
     return df
 
 
@@ -78,16 +104,22 @@ def normalize_columns(df, colnames):
     return df
 
 
-def one_hot_encode(df, colnames):
+def one_hot_encode(df, test_df, colnames):
     """This function performs one-hot encoding of the columns
     :param df: input df
     :param colnames: columns to be one-hot encoded
     :return: dataframe
     """
+
     for col in colnames:
-        oh_df = get_dummies(df[col], prefix=col, drop_first=True)
-        df = concat([oh_df, df], axis=1)
-        df = df.drop([col], axis=1)
+        train_labels = (sorted(list(set(df[col].values))))
+        test_labels = sorted(list(set(test_df[col].values)))
+        if train_labels == test_labels:
+            oh_df = get_dummies(df[col], prefix=col, drop_first=True)
+            df = concat([oh_df, df], axis=1)
+            df = df.drop([col], axis=1)
+        else:
+            cols = list(set(test_labels) - set(train_labels))
 
     missing = (df.isnull().values.any())
     while missing:
@@ -160,7 +192,7 @@ def get_model(input_size, output_size, magic='relu'):
     :return:Sequential model
     """
     dropout_rate = 0.2
-    mlmodel = Sequential()
+    mlmodel = tf.keras.Sequential()
     mlmodel.add(Dense(18, input_dim=input_size, activation='selu'))
 
     mlmodel.add(Dense(32, activation='selu', kernel_initializer="uniform"))
@@ -191,6 +223,7 @@ def get_model(input_size, output_size, magic='relu'):
     # opt = SGD(lr=0.01)
     # mlmodel.compile(loss="binary_crossentropy", optimizer=opt, metrics=['binary_accuracy'])
     return mlmodel
+
 
 def fit_and_evaluate(model, x_train, y_train, x_test, y_test, batch_size, epochs):
     """fits the model created in the get_model function on x_train, y_train and evaluates the model performance on
@@ -253,8 +286,10 @@ def make_predictions(model, x_test):
     :param x_test: unseen test dataset
     :return: predictions in the binary numpy array format
     """
-
-    predictions = model.predict_on_batch(x_test)
+    print(x_test)
+    print(x_test.shape)
+    print(list(x_test.columns))
+    predictions = model.predict(x_test)
     labels = (np.where(predictions < 0.5, 0, 1)).flatten()
     return labels, model
 
@@ -283,16 +318,18 @@ def write_logs(fname, score):
 
 
 def export(classifier):
-    pickle_out = open("classifier.pkl", "wb")
-    dump(classifier, pickle_out)
-    pickle_out.close()
+    make_keras_picklable()
+    dumps(classifier)
+    print('keras model pickled')
 
 
 if __name__ == '__main__':
-    df = import_data()
+    df = import_data(fname='datasets/cs-training.csv')
+    test_df = import_data(fname='datasets/cs-test.csv', train=False)
     df = clean_data(df)
-    df = normalize_columns(df, colnames=['age', 'MonthlyIncome'])
-    df = one_hot_encode(df, colnames=['NumberOfDependents', 'ages'])
+    test_df = clean_data(test_df)
+    df = normalize_columns(df, colnames=['age', 'MonthlyIncome', 'NumberOfDependents'])
+    df = one_hot_encode(df, test_df, colnames=['ages'])
     df = undersample(df)
     X, Y, x_train, x_test, y_train, y_test = split_dataset(df, test_size=0.2, seed=42)
     missing = (X.isnull().values.any())
@@ -302,7 +339,7 @@ if __name__ == '__main__':
     classifier = get_model(X.shape[1], 1, magic='sigmoid')
     start = datetime.now()
     batch = 1024
-    epochs = 100
+    epochs = 5  # 100
 
     test_acc, test_loss = fit_and_evaluate(classifier, X_train, Y_train, x_test, y_test, batch_size=batch,
                                            epochs=epochs)
@@ -322,7 +359,7 @@ if __name__ == '__main__':
 
     fname = 'nn_logs.xlsx'
     export_flag = write_logs(fname, roc_auc_score)
-    # export(model)
+    export(model)
 
     # if export_flag:
     #     export(model)
