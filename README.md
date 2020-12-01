@@ -11,7 +11,7 @@ Credit scoring algorithms, which make a guess at the probability of default, are
 The goal of this competition is to build a model that borrowers can use to help make the best financial decisions.
 
 The web application for this project has been deployed and 
-can be accessed via [this link](https://https://credit-risk-with-deep-learning.herokuapp.com/docs)
+can be accessed via [this link](https://credit-risk-with-deep-learning.herokuapp.com/docs)
 
 ROC AUC Score: 0.7668 or 76.68%
 
